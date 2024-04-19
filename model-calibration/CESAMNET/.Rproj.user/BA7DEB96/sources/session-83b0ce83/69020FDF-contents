@@ -1,0 +1,472 @@
+
+
+//Monkeypox_Baseline Model SEIR only, #Monkeypox_Baseline Model SEIR only, with 1/phi
+//No demography, but with transmission rate and scaling factor alpha
+functions {
+  real[] sir(real t, real[] y, real[] theta, 
+             real[] x_r, int[] x_i) {
+    
+    int Nh = x_i[1];
+    int Nm = x_i[2];
+    
+    real gammah = x_r[1];
+    real tau = x_r[2];
+    real C = x_r[3];
+    real p = x_r[4];
+    real alphah = x_r[5];
+    real alpham = x_r[6];
+    real muh  = x_r[7];
+    real mum = x_r[8];
+    real sigmam = x_r[9];
+    real delta = x_r[10];
+    real epsilon = x_r[11];
+    real Lambdah;
+    real Lambdam;
+    
+    
+    real dSh_dt;
+    real dEh_dt;
+    real dIh_dt;
+    real dRh_dt;
+    real dSm_dt;
+    real dEm_dt;
+    real dIm_dt;
+    real dInci_dt;
+    
+    real Sh = y[1];
+    real Eh = y[2];
+    real Ih = y[3];
+    real Rh = y[4];
+    real Sm = y[5];
+    real Em = y[6];
+    real Im = y[7];
+    real inci = y[8];
+    real phi2;
+    real phi1;
+    real w;
+    real PIE;
+    real s;
+    real I0 = theta[1];
+    real alpha1 = theta[2];
+    real alpha2 = theta[3];
+    real alpha3 = theta[4];
+    real alpha4 = theta[5];
+    real alpha5 = theta[6];
+    real alpha6 = theta[7];
+    real alpha7 = theta[8];
+    real alpha8 = theta[9];
+    real alpha9 = theta[10];
+    real alpha10 = theta[11];
+    real alpha11 = theta[12];
+    real alpha12 = theta[13];
+    real alpha13 = theta[14];
+    real alpha14 = theta[15];
+    real alpha15 = theta[16];
+    real alpha16 = theta[17];
+    real alpha17 = theta[18];
+    real alpha18 = theta[19];
+    real alpha19 = theta[20];
+    real alpha20 = theta[21];
+    real alpha21 = theta[22];
+    real alpha22 = theta[23];
+    // real alpha23 = theta[24];
+    // real alpha24 = theta[25];
+    // real alpha25 = theta[26];
+    // real alpha26 = theta[27];
+    // real alpha27 = theta[28];
+    // real alpha28 = theta[29];
+    // real alpha29 = theta[30];
+    // real alpha30 = theta[31];
+    // real alpha31 = theta[32];
+    // real alpha32 = theta[33];
+    // real alpha33 = theta[34];
+    // real alpha34 = theta[35];
+    // real alpha35 = theta[36];
+    // real alpha36 = theta[37];
+    // real alpha37 = theta[38];
+    
+    real alpha;
+    
+    if (t <= 2){
+      alpha = alpha1;
+    } else if (t > 2 && t <= 4) {
+      alpha = alpha2;
+    } else if (t > 4 && t <= 6) {
+      alpha = alpha3;
+    } else if (t > 6 && t <= 8) {
+      alpha = alpha4;
+    } else if (t > 8 && t <= 10) {
+      alpha = alpha5;
+    } else if (t > 10 && t <= 12) {
+      alpha = alpha6;
+    } else if (t > 12 && t <= 14) {
+      alpha = alpha7;
+    } else if (t > 14 && t <= 16) {
+      alpha = alpha8;
+    } else if (t > 16 && t <= 18) {
+      alpha = alpha9;
+    } else if (t > 18 && t <= 20) {
+      alpha = alpha10;
+    } else if (t > 20 && t <= 22) {
+      alpha = alpha11;
+    } else if (t > 22 && t <=24) {
+      alpha = alpha12;
+    }else if (t > 24 && t <= 26) {
+      alpha = alpha13;
+    } else if (t > 26 && t <= 28) {
+      alpha = alpha14;
+    } else if (t > 28 && t <= 30) {
+      alpha = alpha15;
+    } else if (t > 30 && t <= 32) {
+      alpha = alpha16;
+    } else if (t > 32 && t <= 34) {
+      alpha = alpha17;
+    } else if (t > 34 && t <= 36) {
+      alpha = alpha18;
+    } else if (t > 36 && t <= 38) {
+      alpha = alpha19;
+    } else if (t > 38 && t <= 40) {
+      alpha = alpha20;
+    } else if (t > 40 && t <= 42) {
+      alpha = alpha21;
+    } else {
+      alpha = alpha22;
+    
+        //} else if (t > 154 && t <= 161) {
+        //   alpha = alpha23;
+        // } else if (t > 161 && t <= 168) {
+          //   alpha = alpha24;
+          // } else if (t > 168 && t <= 175) {
+            //   alpha = alpha25;
+            // } else if (t > 175 && t <= 182) {
+              //   alpha = alpha26;
+              // } else if (t > 182 && t <= 189) {
+                //   alpha = alpha27;
+                // } else if (t > 189 && t <= 196){
+                  //   alpha = alpha28;
+                  // } else if (t > 196 && t <= 203){
+                    //   alpha = alpha29;
+                    // } else if (t > 203 && t <= 210){
+                      //   alpha = alpha30;
+                      // } else if (t > 210 && t <= 217){
+                        //   alpha = alpha31;
+                        // } else if (t > 217 && t <= 224){
+                          //   alpha = alpha32;
+                          // } else if (t > 224 && t <= 231){
+                            //   alpha = alpha33;
+                            // } else if (t > 231 && t <= 238){
+                              //   alpha = alpha34;
+                              // } else if (t > 238 && t <= 245){
+                                //   alpha = alpha35;
+                                // } else if (t > 245 && t <= 252){
+                                  //   alpha = alpha36;
+                                  // } else {
+                                    //   alpha = alpha37;
+                                  }
+    PIE = 22.0/7;
+    w = 2*PIE/12;
+    phi2 = 0.8;
+    phi1 = 0.8;
+    s=3.2;
+    //3.2 work
+    //Lambdah = b * Lambdah * (1+cos(w*t));
+    //Lambdam = b * Lambdam * (1+cos(w*t));
+    
+    
+    // Lambdah = C * p * alpha * (1+ a2 * cos(w*t)); 
+    //  Lambdah = C * p * alpha * (1+ phi1*cos(t*w) + phi2 * sin(t*w));
+    
+    Lambdah = C * p * alpha * (1+ phi1*cos(w*(t-s)) + phi2 * sin(w*(t-s))); 
+    Lambdam = C * p * alpha;
+    
+    //is demo helful????????????????????????
+    
+    dSh_dt =alphah -(Lambdah*Im*Sh)/Nh - muh *Sh + epsilon * Rh;
+    dEh_dt = (Lambdah*Im*Sh)/Nh - gammah * Eh -muh * Eh;
+    dIh_dt =  gammah * Eh - tau * Ih - muh * Ih - delta*Ih;
+    dRh_dt = tau * Ih  - muh* Rh - epsilon * Rh;
+    dSm_dt = alpham - (Lambdam * Ih / Nh) * Sm - mum * Sm;
+    dEm_dt = (Lambdam * Ih / Nh) * Sm - (sigmam + mum)* Em;
+    dIm_dt = sigmam * Em- mum * Im;
+    dInci_dt = gammah * Eh;
+    
+    
+    // real dSh_dt = alphah - (Lambdah * Im / Nh) * Sh - muh * Sh;
+    // real dEh_dt = (Lambdah * Im / Nh) * Sh - (vh+muh) * Eh;
+    // real dIh_dt = vh * Eh - (gammah+muh+deltah) * Ih;
+    // real dRh_dt =  gammah * Ih - muh * Rh;
+    // real dSm_dt = alpham - (Lambdam * Ih / Nh) * Sm - mum * Sm;
+    // real dEm_dt = (Lambdam * Ih / Nh) * Sm - (sigmam + mum)* Em;
+    // real dIm_dt = sigmam * Em- mum * Im;
+    // real dInci_dt = vh * Eh;
+    
+    
+    return {dSh_dt, dEh_dt, dIh_dt, dRh_dt, dSm_dt, dEm_dt, dIm_dt, dInci_dt};
+  }
+}
+
+data { // this one contains unestimated params
+  int<lower=1> n_days;
+  real y0_vars[7]; //initial conditions
+  real t0;
+  real ts[n_days];
+  int cases[n_days];
+  int Nh;
+  int Nm;
+  real gammah;
+  real tau;
+  real C;
+  real p;
+  real alphah;
+  real alpham;
+  real muh;
+  real mum;
+  real sigmam;
+  real p_phi;
+  real delta;
+  real epsilon;
+  //real a_1[2]; 
+}
+// declare the dimension of unestm params and list them
+transformed data {
+  int x_i[2];
+  real x_r[11];
+  
+  x_i[1] = Nh;
+  x_i[2] = Nm;
+  
+  x_r[1] = gammah;
+  x_r[2] = tau;
+  x_r[3] = C;
+  x_r[4] = p;
+  x_r[5] = alphah;
+  x_r[6] = alpham;
+  x_r[7] = muh;
+  x_r[8] = mum;
+  x_r[9] = sigmam;
+  x_r[10] = delta;
+  x_r[11] = epsilon;
+  
+
+}
+parameters {
+  real<lower=0, upper=1> alpha1;
+  real<lower=0, upper=1> alpha2;
+  real<lower=0, upper=1> alpha3;
+  real<lower=0, upper=1> alpha4;
+  real<lower=0, upper=1> alpha5;
+  real<lower=0, upper=1> alpha6;
+  real<lower=0, upper=1> alpha7;
+  real<lower=0, upper=1> alpha8;
+  real<lower=0, upper=1> alpha9;
+  real<lower=0, upper=1> alpha10;
+  real<lower=0, upper=1> alpha11;
+  real<lower=0, upper=1> alpha12;
+  real<lower=0, upper=1> alpha13;
+  real<lower=0, upper=1> alpha14;
+  real<lower=0, upper=1> alpha15;
+  real<lower=0, upper=1> alpha16;
+  real<lower=0, upper=1> alpha17;
+  real<lower=0, upper=1> alpha18;
+  real<lower=0, upper=1> alpha19;
+  real<lower=0, upper=1> alpha20;
+  real<lower=0, upper=1> alpha21;
+  real<lower=0, upper=1> alpha22;
+  // real<lower=0, upper=2> alpha23;
+  // real<lower=0, upper=2> alpha24;
+  // real<lower=0, upper=2> alpha25;
+  // real<lower=0, upper=2> alpha26;
+  // real<lower=0, upper=2> alpha27;
+  // real<lower=0, upper=2> alpha28;
+  // real<lower=0, upper=2> alpha29;
+  // real<lower=0, upper=2> alpha30;
+  // real<lower=0, upper=2> alpha31;
+  // real<lower=0, upper=2> alpha32;
+  // real<lower=0, upper=2> alpha33;
+  // real<lower=0, upper=2> alpha34;
+  // real<lower=0, upper=2> alpha35;
+  // real<lower=0, upper=2> alpha36;
+  // real<lower=0, upper=2> alpha37;
+  real<lower=0, upper=300> I0;
+  //real<lower=0> Lambdam;
+  //real<lower=0> Lambdamh;
+  real<lower=0> phi;
+}
+
+transformed parameters{
+  real y[n_days, 8]; // no of compartm
+  real y0[8];  // initial state
+  row_vector[7] y0_vec;         // 4 initial conditions vector, out of 5
+  row_vector[8] y0_temp;         // State variables +incidence, 5 out of 5
+  
+  
+  vector[n_days] Cum_incidence; // overall case incidence by day
+  vector[n_days] Incidence_total; 	// incidence
+  
+  
+  y0_vec = to_row_vector(y0_vars);
+  y0_temp[1] =  y0_vec[1];   // initial susceptibles
+  y0_temp[2:3] =  y0_vec[2:3]*I0;   // exposed and infected
+  y0_temp[4] =  y0_vec[4];   // recovered
+  y0_temp[5] =  y0_vec[5]; 
+  y0_temp[6] =  y0_vec[6]; 
+  y0_temp[7] =  y0_vec[7]; 
+  y0_temp[8] =  0;   // incidence
+  
+  
+  y0 = to_array_1d(y0_temp);
+  
+  
+  {
+    real theta[23];
+    theta[1] = I0;
+    theta[2] = alpha1;
+    theta[3] = alpha2;
+    theta[4] = alpha3;
+    theta[5] = alpha4;
+    theta[6] = alpha5;
+    theta[7] = alpha6;
+    theta[8] = alpha7;
+    theta[9] = alpha8;
+    theta[10] = alpha9;
+    theta[11] = alpha10;
+    theta[12] = alpha11;
+    theta[13] = alpha12;
+    theta[14] = alpha13;
+    theta[15] = alpha14;
+    theta[16] = alpha15;
+    theta[17] = alpha16;
+    theta[18] = alpha17;
+    theta[19] = alpha18;
+    theta[20] = alpha19;
+    theta[21] = alpha20;
+    theta[22] = alpha21;
+    theta[23] = alpha22;
+    // theta[24] = alpha23;
+    // theta[25] = alpha24;
+    // theta[26] = alpha25;
+    // theta[27] = alpha26;
+    // theta[28] = alpha27;
+    // theta[29] = alpha28;
+    // theta[30] = alpha29;
+    // theta[31] = alpha30;
+    // theta[32] = alpha31;
+    // theta[33] = alpha32;
+    // theta[34] = alpha33;
+    // theta[35] = alpha34;
+    // theta[36] = alpha35;
+    // theta[37] = alpha36;
+    // theta[38] = alpha37;
+    y = integrate_ode_rk45(sir, y0, t0, ts, theta, x_r, x_i);
+    
+    for(i in 1:n_days) {
+      Cum_incidence[i] = y[i,8] ;
+      if (i == 1){
+        Incidence_total[i] =  Cum_incidence[i];
+      } else {
+        Incidence_total[i] =  Cum_incidence[i] - Cum_incidence[i-1];
+      }
+    }
+    
+  }
+}
+
+
+model {
+  //priors
+  alpha1 ~ uniform(0, 1); //upper and lower bound
+  alpha2 ~ uniform(0, 1); //upper and lower bound
+  alpha3 ~ uniform(0, 1); //upper and lower bound
+  alpha4 ~ uniform(0, 1); //upper and lower bound
+  alpha5 ~ uniform(0, 1); //upper and lower bound
+  alpha6 ~ uniform(0, 1); //upper and lower bound
+  alpha7 ~ uniform(0, 1); //upper and lower bound
+  alpha8 ~ uniform(0, 1); //upper and lower bound
+  alpha9 ~ uniform(0, 1); //upper and lower bound
+  alpha10 ~ uniform(0, 1); //upper and lower bound
+  alpha11 ~ uniform(0, 1); //upper and lower bound
+  alpha12 ~ uniform(0, 1); //upper and lower bound
+  alpha13 ~ uniform(0, 1); //upper and lower bound
+  alpha14 ~ uniform(0, 1); //upper and lower bound
+  alpha15 ~ uniform(0, 1); //upper and lower bound
+  alpha16 ~ uniform(0, 1); //upper and lower bound
+  alpha17 ~ uniform(0, 1); //upper and lower bound
+  alpha18 ~ uniform(0, 1); //upper and lower bound
+  alpha19 ~ uniform(0, 1); //upper and lower bound
+  alpha20 ~ uniform(0, 1); //upper and lower bound
+  alpha21 ~ uniform(0, 1); //upper and lower bound
+  alpha22 ~ uniform(0, 1); //upper and lower bound
+  // alpha23 ~ uniform(0, 2); //upper and lower bound
+  // alpha24 ~ uniform(0, 2); //upper and lower bound
+  // alpha25~ uniform(0, 2); //upper and lower bound
+  // alpha26 ~ uniform(0, 2); //upper and lower bound
+  // alpha27 ~ uniform(0, 2); //upper and lower bound
+  // alpha28 ~ uniform(0, 2); //upper and lower bound
+  // alpha29 ~ uniform(0, 2); //upper and lower bound
+  // alpha30 ~ uniform(0, 2); //upper and lower bound
+  // alpha31 ~ uniform(0, 2); //upper and lower bound
+  // alpha32 ~ uniform(0, 2); //upper and lower bound
+  // alpha33~ uniform(0, 2); //upper and lower bound
+  // alpha34 ~ uniform(0, 2); //upper and lower bound
+  // alpha35 ~ uniform(0, 2); //upper and lower bound
+  // alpha36 ~ uniform(0, 2); //upper and lower bound
+  // alpha37 ~ uniform(0, 2); //upper and lower bound
+  // 
+    //alpha ~ lognormal(1,20);
+  I0 ~ lognormal(4, 3);
+  //Lambdamh ~ lognormal(2, 1);
+  phi ~ exponential(p_phi);
+  //phi_inv ~ poisson_log(5);
+  
+  
+  //sampling distribution, Likelihood: give params, generate data
+  //col(matrix x, int n) - The n-th column of matrix x. Here the number of infected people 
+  // cases ~ neg_binomial_2(col(to_matrix(y), 3), phi);
+  cases ~ neg_binomial_2(Incidence_total,1/phi);   // *ascert_frac
+}
+
+
+generated quantities {
+  //real R0 = beta*(1/gamma);
+  real Lambdah1 = C * p * alpha1;
+  real Lambdah2 = C * p * alpha2;
+  real Lambdah3 = C * p * alpha3;
+  real Lambdah4 = C * p * alpha4;
+  real Lambdah5 = C * p * alpha5;
+  real Lambdah6 = C * p * alpha6;
+  real Lambdah7 = C * p * alpha7;
+  real Lambdah8 = C * p * alpha8;
+  real Lambdah9 = C * p * alpha9;
+  real Lambdah10 = C * p * alpha10;
+  real Lambdah11 = C * p * alpha11;
+  real Lambdah12 = C * p * alpha12;
+  real Lambdah13 = C * p * alpha13;
+  real Lambdah14 = C * p * alpha14;
+  real Lambdah15 = C * p * alpha15;
+  real Lambdah16 = C * p * alpha16;
+  real Lambdah17 = C * p * alpha17;
+  real Lambdah18 = C * p * alpha18;
+  real Lambdah19 = C * p * alpha19;
+  real Lambdah20 = C * p * alpha20;
+  real Lambdah21 = C * p * alpha21;
+  real Lambdah22 = C * p * alpha22;
+  // real Lambdah23 = C * p * alpha23;
+  // real Lambdah24 = C * p * alpha24;
+  // real Lambdah25 = C * p * alpha25;
+  // real Lambdah26 = C * p * alpha26;
+  // real Lambdah27 = C * p * alpha27;
+  // real Lambdah28 = C * p * alpha28;
+  // real Lambdah29 = C * p * alpha29;
+  // real Lambdah30 = C * p * alpha30;
+  // real Lambdah31 = C * p * alpha31;
+  // real Lambdah32 = C * p * alpha32;
+  // real Lambdah33 = C * p * alpha33;
+  // real Lambdah34 = C * p * alpha34;
+  // real Lambdah35 = C * p * alpha35;
+  // real Lambdah36 = C * p * alpha36;
+  // real Lambdah37 = C * p * alpha37;
+  real pred_cases[n_days];
+  pred_cases = neg_binomial_2_rng(Incidence_total, 1/phi);   // *ascert_frac
+  //pred_cases = neg_binomial_2_rng(col(to_matrix(y), 3), phi);
+}
+

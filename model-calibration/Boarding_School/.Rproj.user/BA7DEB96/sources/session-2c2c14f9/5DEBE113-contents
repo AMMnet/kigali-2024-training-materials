@@ -1,0 +1,182 @@
+#Monkeypox_Baseline Model SEIR only, #Monkeypox_Baseline Model SEIR only, with 1/phi
+#No demography
+#with transmission, generated betah and estimated C.and scaling factor alpha
+library(ggplot2)
+library(tidyverse)
+library(matrixStats)
+library(extrafont)
+library(ggthemes)
+library(lemon)
+library(latex2exp)
+library(purrr)
+library(outbreaks)
+library(tidyverse)
+library(rstan)
+library(gridExtra)
+rstan_options (auto_write = TRUE)
+options (mc.cores = parallel::detectCores ())
+path  = "C:/Users/rabiu/OneDrive/Documents/R_code/Mpox_Germ/Monkeypox_UK/With_Sca_fact/"
+
+setwd(path)
+#Fitsummary not used
+#source("Fit_Summary.R")   # Loads the function that store the outputs of the samplying in a folder
+# the outputs stored by this include: the density plot, trace plot, prediction of cases  plotted 
+# together with the actual cases data for each age-group. 
+
+UK <- read.csv("Updated_Mpox_data.csv") 
+
+#casesS = Ger2$new_cases_smoothed[14107:14257]
+casesS = UK$new_cases_smoothed[35366:35566]
+cases = round(casesS)
+
+# total count
+
+Nh <- 67300000;
+Nm <- 200
+betam <- 0.050;
+betamh <- 0.1838; #changed from 1.1838 to 0.1838
+pih <- 3548;
+pim <- 50;
+epsilon <- 0;
+muh <- 1/81;
+mum <- 1/1.5;
+phih <- 0.03; # Vaccine rate
+eta <- 0.75; #vaccine efficacy
+gammam <- 1/9;
+gammah <- 1/2.5;# incidence
+tau <- 1/21; # recovery 
+delta <- 0.0500 #induced death
+p <- 0.8
+C <- 1.2 #0.15#0.11 #0.24,0.9
+
+# times
+n_days <- length(cases) 
+t <- seq(0, n_days, by = 1)
+t0 = 0 
+t <- t[-1]
+
+#initial conditions
+Eh0 = 5; Ih0=5;Rh0 = 0; Vh0=0; 
+Em0=5; Im0=5;
+#Eh0 = 25; Ih0=5; Rh0 = 25; 
+
+Sh0=Nh; Sm0=Nm;
+y0 = c( Sh=Sh0,Eh = Eh0, Vh=Vh0, Ih=Ih0, Rh = Rh0, Sm=Sm0, Em=Em0,Im=Im0)
+
+# data for Stan
+data_sir <- list(
+  n_days = n_days,
+  y0_vars = y0, 
+  t0 = t0,
+  ts = t,
+  Nh = Nh,
+  Nm=Nm,
+  pih=pih,
+  pim=pim,
+ epsilon=epsilon,
+ betam=betam,
+ betamh=betamh,
+   muh=muh,
+ mum=mum,
+  phih=phih,
+  eta= eta,
+  gammam=gammam,
+ gammah=gammah,
+  tau=tau,
+  delta=delta,
+  C = C,
+  p=p,
+  cases = cases,
+  p_phi=c(5),
+  a_1=c(1,20)
+)
+
+# number of MCMC steps
+niter <- 100
+model <- stan_model("Tos_ContBrk_wk.stan")
+
+
+fit_seir <- sampling(model,
+                           data = data_sir,
+                           iter = niter,
+                           chains = 4, 
+                           seed = 0)
+
+
+
+################### saving stan object ###################
+saveRDS(fit_seir, file="TostanOutput_weekly.RDS")
+fit_seir_negbin <- readRDS("TostanOutput_weekly.RDS")
+print(fit_seir_negbin, pars=pars)
+# saving the sampling output
+# Extracting the posteriors  from the output of the sampling and saving it in a file
+Extract <- rstan::extract(fit_seir_negbin)
+Post  <- data.frame(i0 = Extract$I0, C1 = Extract$C1, C2 = Extract$C2,
+                    C3 = Extract$C3,
+                    C4 = Extract$C4, C5 = Extract$C5, C6= Extract$C6,
+                    C7 = Extract$C7,
+                    C8 = Extract$C8, C9 = Extract$C9, C10= Extract$C10,
+                    C11 = Extract$C11,
+                    C12 = Extract$C12, C13 = Extract$C13, C14= Extract$C14,
+                    C15 = Extract$C15, C16 = Extract$C16, C17= Extract$C17,
+                    C18 = Extract$C18, C19 = Extract$C19, C20= Extract$C20,
+                    C21 = Extract$C21, C22 = Extract$C22,C23 = Extract$C23,
+                    C24 = Extract$C24,C25 = Extract$C25,
+                    phi = Extract$phi)
+write.table(Post, file="TosPar_PostDist_weekly.csv")
+
+Post <- read.table(file= paste(path, "TosPar_PostDist_weekly.csv", sep="") )
+pars=c("I0", "C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8",
+       "C9", "C10", "C11", "C12", "C13", "C14", "C15", "C16",
+       "C17", "C18", "C19", "C20", "C21",
+       "C22", "C23", "C24", "C25", "phi") 
+print(fit_seir_negbin, pars=pars)
+densityplot <- stan_dens(fit_seir_negbin, pars = pars, separate_chains = TRUE)
+densityplot
+# saving the projecttion plot in a .png file
+png(filename= paste(path, "Fit_Summary/Tosweekly_Densityplot.png", sep = ""))
+plot(densityplot)
+dev.off()
+
+tplot <- traceplot(fit_seir_negbin, pars = pars)
+tplot
+# saving the projecttion plot in a .png file
+png(filename= paste(path, "Fit_Summary/Tosweekly_traceplot.png", sep = ""))
+plot(tplot)
+dev.off()
+
+smr_pred <- cbind(as.data.frame(summary(
+  fit_seir_negbin, pars = "pred_cases", probs = c(0.05,0.25, 0.5,0.75, 0.95))$summary), t, cases)
+colnames(smr_pred) <- make.names(colnames(smr_pred)) # to remove % in the col names
+
+
+
+weekly <- ggplot(smr_pred, mapping = aes(x = t)) +
+  geom_ribbon(aes(ymin = X25., ymax = X75.), fill = "brown4", alpha = 0.5) +
+  geom_ribbon(aes(ymin = X5., ymax = X95.), fill = "brown4", alpha = 0.5) +
+  geom_line(mapping = aes(x = t, y = X50.), color = "yellow", linewidth =1.5) +
+  geom_point(mapping = aes(y = cases, x=t), size = 2.5) +
+  labs(x = "Time (days)", y = "Reported cases") + theme_bw() + theme(text = element_text(size = 35)) +
+  ggtitle("United Kingdom") + # theme(plot.title = element_text(hjust = 0.5)) +
+  theme(plot.title=element_text(hjust=0.05, vjust=0.7, margin=margin(t=50,b=-30), size=26)) + 
+  theme(panel.grid.major = element_line(linewidth = 1, color = NULL),
+        panel.grid.minor = element_line(linewidth = 1, color = NULL),
+        panel.background = element_rect(colour = "black", linewidth=2, fill=NA), 
+        axis.line = element_line(colour = "black")) 
+
+weekly
+
+
+png(filename= paste(path, "Fit_Summary/Tosweekly.png", sep = ""))
+plot(weekly)
+dev.off()
+
+
+
+print(fit_seir_negbin, pars = pars)
+stan_dens(fit_seir_negbin, pars = pars, separate_chains = TRUE)
+traceplot(fit_seir_negbin, pars = pars)
+
+
+
+

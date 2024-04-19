@@ -1,0 +1,165 @@
+#Monkeypox_Baseline Model SEIR only, #Monkeypox_Baseline Model SEIR only, with 1/phi
+#No demography
+#with transmission, generated betah and estimated C.and scaling factor C
+library(ggplot2)
+library(tidyverse)
+library(matrixStats)
+library(extrafont)
+library(ggthemes)
+library(lemon)
+library(latex2exp)
+library(purrr)
+library(outbreaks)
+library(tidyverse)
+library(rstan)
+library(gridExtra)
+rstan_options (auto_write = TRUE)
+options (mc.cores = parallel::detectCores ())
+path  = "C:/Users/rabiu/OneDrive/Documents/R_code/Covid_with_Afis/Break_Baseline/"
+setwd(path)
+#Fitsummary not used
+#source("Fit_Summary.R")   # Loads the function that store the outputs of the samplying in a folder
+# the outputs stored by this include: the density plot, trace plot, prediction of cases  plotted 
+# together with the actual cases data for each age-group. 
+
+
+Covid_Data <- read.csv("owid-covid-data2.csv")     # reads in a .csv file containing cases data from the beginning of the epidemic
+
+# extract the data for first all days
+#cases1 = Covid_Data$new_cases_smoothed[131960:133184]
+cases1 = Covid_Data$new_cases_smoothed[131960:132460]
+cases=round(cases1)
+
+# total count
+Nh= 273000000;
+gammah <- 1/14;#0.8799; incubation
+tau <- 0.5; # #recovery
+p <- 0.4
+delta <- 0.001
+  mu <- 1/70
+  lambda <- 500
+#C <- 0.6 #0.15#0.11 #0.24,0.9
+
+# times
+n_days <- length(cases) 
+t <- seq(0, n_days, by = 1)
+t0 = 0 
+t <- t[-1]
+
+#initial conditions
+Eh0 = 0.5; Ih0=0.5;Rh0 = 0; 
+
+#Eh0 = 25; Ih0=5; Rh0 = 25; 
+
+Sh0=Nh;
+y0 = c( Sh=Sh0,Eh = Eh0, Ih=Ih0, Rh = Rh0)
+
+# data for Stan
+data_sir <- list(
+  n_days = n_days,
+  y0_vars = y0, 
+  t0 = t0,
+  ts = t,
+  Nh = Nh,
+  gammah=gammah,
+  tau=tau,
+  delta = delta,
+  mu=mu,
+  lambda= lambda,
+  #C = C,
+  p=p,
+  cases = cases,
+  p_phi=c(5),
+  a_1=c(1,20)
+)
+
+# number of MCMC steps
+niter <- 100
+model <- stan_model("Mpox_cov_ctr.stan")
+
+
+fit_sir <- sampling(model,
+                           data = data_sir,
+                           iter = niter,
+                           chains = 4, 
+                           seed = 0)
+fit_seir <-fit_sir
+
+################### saving stan object ###################
+saveRDS(fit_seir, file="Contact_weekly.RDS")
+fit_seir_negbin <- readRDS("Contact_weekly.RDS")
+
+# saving the sampling output
+# Extracting the posteriors  from the output of the sampling and saving it in a file
+Extract <- rstan::extract(fit_seir_negbin)
+Post  <- data.frame(i0 = Extract$I0, C1 = Extract$C1, C2 = Extract$C2,
+                    C3 = Extract$C3,C4 = Extract$C4, C5 = Extract$C5, C6= Extract$C6,
+                    C7 = Extract$C7,C8 = Extract$C8, C9 = Extract$C9, C10= Extract$C10,
+                    C11 = Extract$C11,C12 = Extract$C12, C13 = Extract$C13, C14= Extract$C14,
+                    C15 = Extract$C15, C16 = Extract$C16, C17= Extract$C17,
+                    C18 = Extract$C18, C19 = Extract$C19, C20= Extract$C20,
+                    C21 = Extract$C21, C22 = Extract$C22,phi = Extract$phi)
+write.table(Post, file="Par_PostDist_weeklyCTR.csv")
+
+Post <- read.table(file= paste(path, "Par_PostDist_weeklyCTR.csv", sep="") )
+pars=c("I0", "C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8",
+       "C9", "C10", "C11", "C12", "C13", "C14", "C15", "C16",
+       "C17", "C18", "C19", "C20", "C21", "C22", "phi") 
+
+densityplot <- stan_dens(fit_seir_negbin, pars = pars, separate_chains = TRUE)
+densityplot
+# saving the projecttion plot in a .png file
+png(filename= paste(path, "Fit_Summary/CTRweekly_Densityplot.png", sep = ""))
+plot(densityplot)
+dev.off()
+
+tplot <- traceplot(fit_seir_negbin, pars = pars)
+tplot
+# saving the projecttion plot in a .png file
+png(filename= paste(path, "Fit_Summary/CTRweekly_traceplot.png", sep = ""))
+plot(tplot)
+dev.off()
+
+smr_pred <- cbind(as.data.frame(summary(
+  fit_seir_negbin, pars = "pred_cases", probs = c(0.05,0.25, 0.5,0.75, 0.95))$summary), t, cases)
+colnames(smr_pred) <- make.names(colnames(smr_pred)) # to remove % in the col names
+
+
+CTRweekly <- ggplot(smr_pred, mapping = aes(x = t)) +
+  geom_ribbon(aes(ymin = X25., ymax = X75.), fill = "steelblue4", alpha = 0.5) +
+  geom_ribbon(aes(ymin = X5., ymax = X95.), fill = "steelblue4", alpha = 0.5) +
+  geom_line(mapping = aes(x = t, y = X50.), color = "blue4", linewidth =1.5) +
+  geom_point(mapping = aes(y = cases, x=t), size = 2.5) +
+  labs(x = "Time (days)", y = "Reported cases") + theme_bw() + theme(text = element_text(size = 35)) +
+  ggtitle("Germany") + # theme(plot.title = element_text(hjust = 0.5)) +
+  theme(plot.title=element_text(hjust=0.05, vjust=0.7, margin=margin(t=50,b=-30), size=26)) + 
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", linewidth=2, fill=NA), 
+        axis.line = element_line(colour = "black")) 
+
+CTRweekly
+png(filename= paste(path, "Fit_Summary/CTRweekly.png", sep = ""))
+plot(CTRweekly)
+dev.off()
+
+
+
+print(fit_seir_negbin, pars = pars)
+stan_dens(fit_seir_negbin, pars = pars, separate_chains = TRUE)
+traceplot(fit_seir_negbin, pars = pars)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

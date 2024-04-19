@@ -1,0 +1,26 @@
+{
+    "id": "1B1A6177",
+    "path": "~/R_code/Malaria/Kogi/SEIR_BitBrk2/Script_SEIRBB_kogi.R",
+    "project_path": null,
+    "type": "r_source",
+    "hash": "0",
+    "contents": "",
+    "dirty": false,
+    "created": 1691682838967.0,
+    "source_on_save": false,
+    "relative_order": 5,
+    "properties": {
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "47,13",
+        "scrollLine": "39"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1691689460,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1691689460708,
+    "read_only": false,
+    "read_only_alternatives": []
+}

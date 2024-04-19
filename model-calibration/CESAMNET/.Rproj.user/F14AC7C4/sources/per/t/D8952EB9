@@ -1,0 +1,26 @@
+{
+    "id": "D8952EB9",
+    "path": "~/R_code/Malaria_BMA/CESAMNET/BMA_mal.stan",
+    "project_path": "BMA_mal.stan",
+    "type": "stan",
+    "hash": "3577771310",
+    "contents": "",
+    "dirty": false,
+    "created": 1709936373487.0,
+    "source_on_save": false,
+    "relative_order": 2,
+    "properties": {
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "167,7",
+        "scrollLine": "156"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1713355788,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1713355788279,
+    "read_only": false,
+    "read_only_alternatives": []
+}

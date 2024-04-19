@@ -1,0 +1,180 @@
+library(ggplot2)
+library(tidyverse)
+library(matrixStats)
+library(extrafont)
+library(lemon)
+library(latex2exp)
+library(outbreaks)
+library(tidyverse)
+library(rstan)
+library(gridExtra)
+#library(ggthemes)
+#library(purrr)
+rstan_options (auto_write = TRUE)
+options (mc.cores = parallel::detectCores ())
+path  = "C:/Users/rabiu/OneDrive/Documents/R_code/Malaria_BMA/CESAMNET"
+setwd(path)
+
+
+Malaria_Sudan <- read.csv("Sudan_data2.csv") 
+cases1 =Malaria_Sudan$CES.cases
+#plot(cases1, type="l")
+Exclude<-na.exclude(cases1) #store the clean data inside exclude
+cases<- Exclude
+length(Exclude)
+
+plot(cases, main='CES',cex.main=3.5,xlab='Time (Weeks)', 
+     ylab='Malaria Cases',type="l",
+     lwd="4", col="grey3", cex.lab=1.5, cex.axis=1.9)
+grid(lwd=3)
+
+
+# # total count
+Nh <- 882840;
+Nm <- 8*0.6*5;#1
+mum= 1/(56/7);#life span is 56 days
+muh = 1/(64*52)# its not ok with daily paramet
+
+pih <-muh*Nh ; # 60,z763 bad
+pim <- Nm*mum;
+sigma1 <- 1/(21/7);#1/2 per w #incubaA
+beta1 = 1.65*7;#prob
+beta2 = 1.25*7;#prob
+b4 = 12; #2#b1+b2
+beta4= 1.75*7; #prob
+omega = 1/(15/7);# immunity
+sigma1= 12/30 #Eh to Ih
+gammah = 1/(21) # reco
+phih= 0.5/(1+0.5*12)   #1/15#0.5/(1+0.5); calculated
+deltah = 0.0291; #ASsumed disease-induced
+sigma2 = 1/(12/7); #Em to Im
+
+#Estimated parameter
+tauh=0.5;
+rho=0.5;
+b1=0.08;
+b2=0.1;
+
+#Computation of R0
+L1=muh+sigma1
+L2=gammah+deltah+muh+tauh
+L3=mum+sigma2
+A=sqrt(L1*L2*L3*pih*pim*b4*beta4*muh*sigma1*sigma2*(b1*beta1+b2*beta2))
+B=L1*L2*L3*pih*mum
+R0=A/B
+
+n_days <- length(cases) 
+t <- seq(0, n_days, by = 1)
+t0 = 0 
+
+t <- t[-1]
+
+
+
+#initial conditions
+Sm0=Nm; Em0=30; Im0=20; #Eh0 = 0.5; Ih0=0.5;Rh0 = 0; 
+Sh0=Nh; Eh0=20; Ih0=12; Rh0=5;
+
+Sh0=Nh;
+y0 = c(Sh=Sh0,Eh=Eh0,Ih=Ih0,Rh=Rh0,Sm=Sm0, Em=Em0, Im=Im0)
+
+# data for Stan
+data_sir <- list(
+  n_days = n_days,
+  y0_vars = y0, 
+  t0 = t0,
+  ts = t,
+  Nh=Nh,
+  Nm=Nm,
+  muh = muh,
+  mum = mum,
+  pih =pih,
+  pim = pim,
+  sigma1 =sigma1,
+  beta1 = beta1,
+  beta2 = beta2,
+  b4 = b4,
+  beta4= beta4,
+  omega = omega,
+  sigma1= sigma1,
+  gammah = gammah,
+  phih= phih,
+  deltah = deltah,
+  mum= mum,
+  sigma2 = sigma2,
+  cases = cases,
+  p_phi=c(5),
+  a_1=c(1,20)
+)
+
+# number 
+niter <- 50
+model <- stan_model("BMA_mal.stan")
+
+
+fit_seir <- sampling(model,
+                     data = data_sir,
+                     iter = niter,
+                     chains = 4, 
+                     seed = 0)
+
+fit_seir_negbin <-fit_seir
+pars=c("I0", "tauh", "rho","b1", "b2", "R0","phi") 
+print(fit_seir_negbin, pars = pars)
+
+densityplot <- stan_dens(fit_seir_negbin, pars = pars, separate_chains = TRUE)
+densityplot
+
+# saving the projection plot in a .png file
+png(filename= paste(path, "Fit_Summary/densityplot.png", sep = ""))
+plot(densityplot)
+dev.off()
+
+tplot <- traceplot(fit_seir_negbin, pars = pars)
+tplot
+
+# saving the projection plot in a .png file
+png(filename= paste(path, "Fit_Summary/tplot.png", sep = ""))
+plot(tplot)
+dev.off()
+
+pairs <- pairs(fit_seir_negbin, pars = pars)
+
+# saving the projection plot in a .png file
+png(filename= paste(path, "Fit_Summary/pairplot.png", sep = ""))
+plot(pairs)
+dev.off()
+
+
+smr_pred <- cbind(as.data.frame(summary(
+  fit_seir_negbin, pars = "pred_cases", probs = c(0.05,0.25, 0.5,0.75, 0.95))$summary), t, cases)
+colnames(smr_pred) <- make.names(colnames(smr_pred)) # to remove % in the col names
+
+
+Sudan <- ggplot(smr_pred, mapping = aes(x = t)) +
+  geom_ribbon(aes(ymin = X25., ymax = X75.), fill = "grey4", alpha = 0.5) +
+  geom_ribbon(aes(ymin = X5., ymax = X95.), fill = "grey4", alpha = 0.5) +
+  geom_line(mapping = aes(x = t, y = X50.), color = "yellow", linewidth =1.5) +
+  geom_point(mapping = aes(y = cases, x=t), size = 2.5) +
+  labs(x = "Time (weeks)", y = "Reported cases") + theme_bw() + theme(text = element_text(size = 35)) +
+  ggtitle("CES") + # theme(plot.title = element_text(hjust = 0.5)) +
+  theme(plot.title=element_text(hjust=0.05, vjust=0.7, margin=margin(t=50,b=-30), size=26)) + 
+  theme(panel.grid.major = element_line(linewidth = 1, color = NULL),
+        panel.grid.minor = element_line(linewidth = 1, color = NULL),
+        panel.background = element_rect(colour = "black", linewidth=2, fill=NA), 
+        axis.line = element_line(colour = "black")) 
+
+Sudan
+
+png(filename= paste(path, "Fit_Summary/SudanCES_Fit.png", sep = ""))
+plot(Sudan)
+dev.off()
+
+# 
+# mean se_mean    sd  2.5%   25%    50%    75%  97.5% n_eff Rhat
+# I0   117.05    1.58 47.12 55.92 83.75 106.45 139.16 246.08   888    1
+# tauh   0.50    0.01  0.28  0.03  0.26   0.50   0.74   0.98  2746    1
+# rho    0.50    0.00  0.28  0.02  0.27   0.51   0.74   0.97  4152    1
+# b1     0.08    0.00  0.05  0.00  0.03   0.07   0.11   0.20  1672    1
+# b2     0.10    0.00  0.07  0.00  0.04   0.09   0.15   0.25  1833    1
+# phi    0.34    0.00  0.03  0.29  0.32   0.34   0.36   0.40  2469    1

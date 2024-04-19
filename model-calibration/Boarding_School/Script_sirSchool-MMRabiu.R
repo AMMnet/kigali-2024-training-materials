@@ -1,0 +1,118 @@
+library(outbreaks) # data is contained inside this package
+library(tidyverse)
+library(rstan)
+library(gridExtra)
+library(shinystan)
+library("bayesplot")
+library("tidybayes")
+library(matrixStats)
+library(BH)
+
+rstan_options (auto_write = TRUE)
+options (mc.cores = parallel::detectCores ())
+
+path="C:/Users/rabiu/OneDrive/Documents/R_code/Boarding_School/"
+setwd(path)
+
+
+head(influenza_england_1978_school)
+ #theme_linedraw, linelight, line_grey
+
+theme_set(theme_bw())
+ggplot(data = influenza_england_1978_school) + 
+  geom_point(mapping = aes(x = date, y = in_bed))+
+  labs(y = "Number of students in bed")
+
+
+
+# time series of cases
+#cases <- c(6,16,21,21,26,26,29,44,45,45,69,86,86,101,101,116,118) #influenza_england_1978_school$in_bed  # Number of students in bed
+#cases<-c(influenza_england_1978_school$in_bed)
+cases1 <- read.csv("infected_data.csv")
+cases2 <- cases1$I
+cases <- round(cases2)
+sum(cases)
+# total count
+N <- 763;
+
+# times
+n_days <- length(cases) 
+t <- seq(0, n_days, by = 1)
+t0 = 0 
+t <- t[-1]
+
+#initial conditions
+i0 <- 1
+s0 <- N - i0
+r0 <- 0
+y0 = c(S = s0, I = i0, R = r0)
+
+# data for Stan
+data_sir <- list(n_days = n_days, y0 = y0, t0 = t0, ts = t, N = N, cases = cases)
+
+# number of MCMC steps
+niter <- 2000
+model <- stan_model(paste(path, "sir_negbin.stan", sep="") )
+
+
+fit_sir_negbin <- sampling(model,data = data_sir,iter = niter,chains = 4, seed = 0)
+pars=c("beta","gamma","R0","recovery_time", "phi_inv")
+print(fit_sir_negbin,pars = pars)
+
+stan_dens(fit_sir_negbin,pars=pars,separate_chains = TRUE)
+pairs(fit_sir_negbin,pars=pars,separate_chains = TRUE)
+traceplot(fit_sir_negbin,pars=pars,separate_chains = TRUE)
+
+
+#Posterior distrbution below shows if the model capture the structure of the data
+
+
+
+smr_pred <- cbind(as.data.frame(summary(
+  fit_sir_negbin, pars = "pred_cases", probs = c(0.05, 0.5, 0.95))$summary), t, cases)
+colnames(smr_pred) <- make.names(colnames(smr_pred)) # to remove % in the col names
+
+ggplot(smr_pred, mapping = aes(x = t)) +
+  geom_ribbon(aes(ymin = X5., ymax = X95.), fill = "blue", alpha = 0.5) +
+  geom_line(mapping = aes(x = t, y = X50.), color = "blue") + 
+  geom_point(mapping = aes(y = cases)) +
+  labs(x = "Day", y = "Number of students in bed")
+
+#Maybe we also want to access the true number of infected people at each time, and not just the number of
+#students in bed. This is a latent variable for which we have an estimation.
+
+params <- lapply(t, function(i){sprintf("y[%s,2]", i)}) #number of infected for each day
+smr_y <- as.data.frame(summary(fit_sir_negbin, 
+                               pars = params, probs = c(0.05, 0.5, 0.95))$summary)
+colnames(smr_y) <- make.names(colnames(smr_y)) # to remove % in the col names
+
+ggplot(smr_y, mapping = aes(x = t)) +
+  geom_ribbon(aes(ymin = X5., ymax = X95.), fill = "red", alpha = 0.5) +
+  geom_line(mapping = aes(x = t, y = X50.), color = "red") + 
+  labs(x = "Day", y = "Number of infected students")
+
+# Or the true number of recovered
+
+params <- lapply(t, function(i){sprintf("y[%s,3]", i)}) #number of infected for each day
+smr_y <- as.data.frame(summary(fit_sir_negbin, 
+                               pars = params, probs = c(0.05, 0.5, 0.95))$summary)
+colnames(smr_y) <- make.names(colnames(smr_y)) # to remove % in the col names
+
+ggplot(smr_y, mapping = aes(x = t)) +
+  geom_ribbon(aes(ymin = X5., ymax = X95.), fill = "green", alpha = 0.5) +
+  geom_line(mapping = aes(x = t, y = X50.), color = "green") + 
+  labs(x = "Day", y = "Number of recovered students")
+
+
+# Or the true number of Susceptible
+
+params <- lapply(t, function(i){sprintf("y[%s,1]", i)}) #number of infected for each day
+smr_y <- as.data.frame(summary(fit_sir_negbin, 
+                               pars = params, probs = c(0.05, 0.5, 0.95))$summary)
+colnames(smr_y) <- make.names(colnames(smr_y)) # to remove % in the col names
+
+ggplot(smr_y, mapping = aes(x = t)) +
+  geom_ribbon(aes(ymin = X5., ymax = X95.), fill = "yellow4", alpha = 0.5) +
+  geom_line(mapping = aes(x = t, y = X50.), color = "yellow4") + 
+  labs(x = "Day", y = "Number of susceptible students")
+

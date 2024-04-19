@@ -1,0 +1,26 @@
+{
+    "id": "C04AE724",
+    "path": "~/R_code/Mpox_Germ/ContactBreak_Weekly/Mpox_ODE/Output.R",
+    "project_path": "Mpox_ODE/Output.R",
+    "type": "r_source",
+    "hash": "2266536235",
+    "contents": "",
+    "dirty": false,
+    "created": 1689086974430.0,
+    "source_on_save": false,
+    "relative_order": 3,
+    "properties": {
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "14,38",
+        "scrollLine": "0"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1687203762,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1687203762,
+    "read_only": false,
+    "read_only_alternatives": []
+}

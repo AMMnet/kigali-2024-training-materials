@@ -1,0 +1,26 @@
+{
+    "id": "69020FDF",
+    "path": "~/R_code/Malaria/Bauchi_BBsec/Stan_sec.stan",
+    "project_path": "Stan_sec.stan",
+    "type": "stan",
+    "hash": "0",
+    "contents": "",
+    "dirty": false,
+    "created": 1693046124597.0,
+    "source_on_save": false,
+    "relative_order": 2,
+    "properties": {
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "178,76",
+        "scrollLine": "0"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1693145429,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1693145429533,
+    "read_only": false,
+    "read_only_alternatives": []
+}

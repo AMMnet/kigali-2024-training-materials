@@ -1,0 +1,26 @@
+{
+    "id": "9E80379A",
+    "path": "~/R_code/Mpox_Germ/Monkeypox_UK/With_Sca_fact/Tos_ContBrk_wk.stan",
+    "project_path": null,
+    "type": "stan",
+    "hash": "0",
+    "contents": "",
+    "dirty": false,
+    "created": 1692026148457.0,
+    "source_on_save": false,
+    "relative_order": 8,
+    "properties": {
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "302,12",
+        "scrollLine": "293"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1692089773,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1692089774017,
+    "read_only": false,
+    "read_only_alternatives": []
+}

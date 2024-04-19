@@ -1,0 +1,239 @@
+library(ggplot2)
+library(tidyverse)
+library(matrixStats)
+library(extrafont)
+library(ggthemes)
+library(lemon)
+library(latex2exp)
+library(purrr)
+library(outbreaks)
+library(tidyverse)
+library(rstan)
+library(gridExtra)
+
+
+rstan_options (auto_write = TRUE)
+options (mc.cores = parallel::detectCores ())
+         
+path  = "C:/Users/rabiu/OneDrive/Documents/R_code/Malaria/Kogi/SEIR_BitBrk2/"
+setwd(path)
+
+
+#Fitsummary not used
+#source("Fit_Summary.R")   # Loads the function that store the outputs of the samplying in a folder
+# the outputs stored by this include: the density plot, trace plot, prediction of cases  plotted 
+# together with the actual cases data for each age-group. 
+
+Kogi_MalariaData <- read.csv("Kogi.csv")     # reads in a .csv file containing cases data from the beginning of the epidemic
+cases =Kogi_MalariaData$Total.Malaria.Cases
+#cases2 = Kano_MalariaData1$Inc_data
+#cases = round(cases2)
+
+Nh <- 12000000;
+Nm <- 500;
+alphah = 3000; #recruitment 
+#b = 70; # average bitting rate
+muh = 1/(55*360);
+vh = 1/12; #Eh to Ih
+deltah = 0.0004;
+gammah =  0.0191938;# recov
+alpham = 0.018*30;
+mum = 0.0039*30; #
+sigmam = 0.1*30; #from Em to Im
+betah = 300;
+betam = 300;
+
+
+#betam = 0.2,0.789 very slow
+# PIE = 22/7;
+# w = 2 * PIE/12;
+# phi1 = 0.5;
+# phi2 = 0.5;
+
+# Nh <- 12000;
+# Nm <- 200/(15*1/12);
+# alphah = 0.01*30; #recruitment
+# #b = 70; # average bitting rate
+# muh = 1/(55*12);
+# vh = 0.0833*30; #Eh to Ih
+# deltah = 0.0029*30
+# gammah = 0.07143*30 # recov
+# alpham = 0.018*30;
+# mum = 0.0039*30; #
+# sigmam = 0.1*30; #from Em to Im
+# betah = 0.8333;
+# betam = 0.2;
+# 
+
+# Nh <- 12000000;
+# Nm <- 2;
+# alphah = 20; #recruitment 
+# b = 0.49; # average bitting rate
+# #muh = 1/50;
+# muh = 0.00006614;
+# 
+# epsilonh = 0; #loss of immu 
+# vh = 1/20; #test
+# thetah = 0.8*1/20#prog rate from Th to Ih of malaria + 
+# f = 0.035 #positive
+# tauh = 0.095; # treatment
+# deltah = 0.0001
+# gammah = 0.07143 # recov
+# alpham = 0.2;
+# mum = 0.002; #
+# sigmam = 0.091; #from Em to Im
+# betam = 1/12;
+
+
+# Nh <- 12000000;
+# Nm <- 200/(15*1/12);
+# 
+# Nh <- 12000000;
+# Nm <- 200/(15*1/12);
+# 
+# alphah = 0.031;
+# betam = 0.475;
+# #betah = 0.015;
+# b=11*30;
+# vh=0.0833;
+# sigmam=0.091;
+# muh = 1/70;
+# gammah=0.07143;
+# deltah=0.0001;
+# alpham=0.13;
+# mum = 1/15;
+# 
+
+# alphah = 2000; #recruitment 
+# b = 0.9; # average bitting rate
+# muh = 1/50;
+# epsilonh = 0.07143; #loss of immu 
+# vh = 1/20; #test
+# thetah = 0.8*1/20#prog rate from Th to Ih of malaria + 
+# f = 0.35 #positive
+# tauh = 0.95; # treatment
+# deltah = 0.0001
+# gammah = 0.07143 # recov
+# alpham = 200;
+# mum = 1/15; #
+# sigmam = 0.091; #from Em to Im
+# betam = 0.8333;
+# times
+n_days <- length(cases) 
+t <- seq(0, n_days, by = 1)
+t0 = 0 
+t <- t[-1]
+#initial conditions
+Eh0 = 0.5; Ih0=0.5; Rh0 = 4; Em0=0; Im0=0.50;
+
+Sm0= Nm-(Em0+Im0)
+Sh0=Nh-(Eh0+Ih0+Rh0);
+y0 = c( Sh=Nh-(Eh0+Ih0+Rh0),Eh = Eh0,Ih=Ih0, Rh = Rh0, Sm=Nm-(Em0+Im0), Em=Em0,Im=Im0)
+
+# data for Stan
+data_sir <- list(
+  n_days = n_days,
+  y0_vars = y0, 
+  t0 = t0,
+  ts = t,
+  alphah =alphah, 
+   betah=betah,
+  muh=muh,
+  vh=vh,
+  deltah=deltah,
+  gammah=gammah,
+  alpham=alpham,
+  mum=mum,
+  sigmam=sigmam,
+  betam = betam,
+  Nh=Nh,
+  Nm=Nm,
+  cases = cases,
+  p_phi=c(5)
+  )
+# number of MCMC steps
+niter <- 50
+model <- stan_model("SEIRBB_Kogi.stan")
+
+
+fit_sir_negbin <- sampling(model,
+                           data = data_sir,
+                           iter = niter,
+                           chains = 4, 
+                           seed = 0)
+
+fit_seir_negbin = fit_sir_negbin  
+saveRDS(fit_seir_negbin, file="Stanoutput_SEIRBB.RDS")
+fit_seir_negbin <- readRDS("Stanoutput_SEIRBB.RDS")
+
+# saving the sampling output
+# Extracting the posteriors  from the output of the sampling and saving it in a file
+Extract <- rstan::extract(fit_seir_negbin)
+Post  <- data.frame(I0 = Extract$I0,b1 = Extract$b1,b2 = Extract$b2,b3 = Extract$b3,
+                    b4 = Extract$b4,b5 = Extract$b5,b6 = Extract$b6,b7 = Extract$b7,
+                    b8 = Extract$b8,b9 = Extract$b9,b10 = Extract$b10,b11= Extract$b11,
+                    b12 = Extract$b12,
+                    b13 = Extract$b13,b14 = Extract$b14,b15 = Extract$b15,
+                    b16 = Extract$b16,b17 = Extract$b17,b18 = Extract$b18,b19 = Extract$b19,
+                    b20 = Extract$b20,b21 = Extract$b21,b22 = Extract$b22,b23= Extract$b23,
+                    b24 = Extract$b24,
+                   phi = Extract$phi)
+write.table(Post, file="Par_PostDist_SEIRBB.csv")
+
+# parameters for the prior for phi 
+Post <- read.table(file= paste(path, "Par_PostDist_SEIRBB.csv", sep="") )
+
+
+pars=c("I0", "b1", "b2", "b3", "b4", "b5", "b6", "b7", "b8","b9", "b10", "b11", "b12",
+       "b13", "b14", "b15", "b16", "b17", "b18", "b19", "b20","b21", "b22", "b23", "b24","phi")
+densityplot <- stan_dens(fit_seir_negbin, pars = pars, separate_chains = TRUE)
+densityplot
+
+# saving the projecttion plot in a .png file
+png(filename= paste(path, "Fit_Summary/SEIRMal_Densityplot.png", sep = ""))
+plot(densityplot)
+dev.off()
+
+tplot <- traceplot(fit_seir_negbin, pars = pars)
+tplot
+# saving the projecttion plot in a .png file
+png(filename= paste(path, "Fit_Summary/SEIRMal_traceplot.png", sep = ""))
+plot(tplot)
+dev.off()
+
+
+print(fit_seir_negbin, pars = pars)
+
+smr_pred <- cbind(as.data.frame(summary(
+  fit_seir_negbin, pars = "pred_cases", probs = c(0.05,0.25, 0.5, 0.75, 0.95))$summary), t, cases)
+colnames(smr_pred) <- make.names(colnames(smr_pred)) # to remove % in the col names
+#From 0.05-0.95 is 90% while 0.25-0.75 is 50%
+
+Kano <- ggplot(smr_pred, mapping = aes(x = t)) +
+  geom_ribbon(aes(ymin = X25., ymax = X75.), fill = "brown", alpha = 0.5) +
+  geom_ribbon(aes(ymin = X5., ymax = X95.), fill = "brown", alpha = 0.5) +
+  geom_line(mapping = aes(x = t, y = X50.), color = "yellow", linewidth=1.5) +
+  geom_point(mapping = aes(y = cases, x=t)) +
+  labs(x = "Days", y = "Cummulative reported cases")+
+  theme(plot.title = element_text(hjust = 0.5))
+Kano
+
+png(filename= paste(path, "Fit_Summary/SEIRmal.png", sep = ""))
+plot(Kano)
+dev.off()
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
